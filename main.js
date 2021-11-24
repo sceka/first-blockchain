@@ -1,19 +1,25 @@
 const SHA256 = require('crypto-js/sha256');
 
+class Transaction {
+	constructor(fromAddress, toAddress, amount) {
+		this.fromAddress = fromAddress;
+		this.toAddress = toAddress;
+		this.amount = amount;
+	}
+}
+
 class Block {
-	constructor(index, timestamp, data, previousHash = '') {
-		this.index = index;
+	constructor(timestamp, transaction, previousHash = '') {
 		this.timestamp = timestamp;
-		this.data = data;
+		this.transaction = transaction;
 		this.previousHash = previousHash;
 		this.hash = this.calculateHash();
 		this.nonce = 0;
 	}
 	calculateHash() {
 		return SHA256(
-			this.index +
-				this.timestamp +
-				JSON.stringify(this.data) +
+			this.timestamp +
+				JSON.stringify(this.transaction) +
 				this.previousHash +
 				this.nonce
 		).toString();
@@ -31,16 +37,17 @@ class Block {
 	}
 }
 
-class BlockChain {
+class Blockchain {
 	constructor() {
 		this.chain = [this.createGenesisBlock()];
-		this.difficulty = 5;
+		this.difficulty = 2;
+		this.pendingTransactions = [];
+		this.miningReward = 100;
 	}
 
 	createGenesisBlock() {
 		return new Block(
-			'0',
-			'24/11/2021',
+			'23/11/2021',
 			'Genesis Block',
 			'0'
 		);
@@ -50,10 +57,43 @@ class BlockChain {
 		return this.chain[this.chain.length - 1];
 	}
 
-	addBlock(newBlock) {
-		newBlock.previousHash = this.getLatestBlock().hash;
-		newBlock.mineBlock(this.difficulty);
-		this.chain.push(newBlock);
+	minePendingTransactions(miningRewardAddress) {
+		let block = new Block(
+			Date.now(),
+			this.pendingTransactions
+		);
+		block.mineBlock(this.difficulty);
+		console.log('Block mined successfully!');
+
+		this.chain.push(block);
+
+		this.pendingTransactions = [
+			new Transaction(
+				null,
+				miningRewardAddress,
+				this.miningReward
+			)
+		];
+	}
+
+	createTransactions(transaction) {
+		this.pendingTransactions.push(transaction);
+	}
+
+	getBalanceOfAddress(address) {
+		let balance = 0;
+
+		for (const block of this.chain) {
+			for (const trans of block.transaction) {
+				if (trans.fromAddress === address) {
+					balance -= trans.amount;
+				}
+				if (trans.toAddress === address) {
+					balance += trans.amount;
+				}
+			}
+		}
+		return balance;
 	}
 
 	isChainValid() {
@@ -78,9 +118,25 @@ class BlockChain {
 	}
 }
 
-let ethCoin = new BlockChain();
+let ethCoin = new Blockchain();
 
-console.log('Mining block 1...');
-ethCoin.addBlock(new Block(1, '25/11/2021', { amount: 2 }));
-console.log('Mining block 2...');
-ethCoin.addBlock(new Block(2, '26/11/2021', { amount: 5 }));
+ethCoin.createTransactions(
+	new Transaction('address1', 'adrress2', 100)
+);
+ethCoin.createTransactions(
+	new Transaction('address2', 'adrress1', 50)
+);
+
+console.log('Starting the miner...');
+ethCoin.minePendingTransactions('marko-address');
+console.log(
+	" \nBalance of marko's address is: " +
+		ethCoin.getBalanceOfAddress('marko-address')
+);
+
+console.log(' \nStarting the miner again...');
+ethCoin.minePendingTransactions('marko-address');
+console.log(
+	" \nBalance of marko's address is: " +
+		ethCoin.getBalanceOfAddress('marko-address')
+);
