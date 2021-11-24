@@ -1,26 +1,40 @@
 const SHA256 = require('crypto-js/sha256');
 
 class Block {
-	constructor(index, timestamp, data, previousHash) {
+	constructor(index, timestamp, data, previousHash = '') {
 		this.index = index;
 		this.timestamp = timestamp;
 		this.data = data;
 		this.previousHash = previousHash;
 		this.hash = this.calculateHash();
+		this.nonce = 0;
 	}
 	calculateHash() {
 		return SHA256(
 			this.index +
 				this.timestamp +
 				JSON.stringify(this.data) +
-				this.previousHash
+				this.previousHash +
+				this.nonce
 		).toString();
+	}
+
+	mineBlock(difficulty) {
+		while (
+			this.hash.substring(0, difficulty) !==
+			Array(difficulty + 1).join('0')
+		) {
+			this.nonce++;
+			this.hash = this.calculateHash();
+		}
+		console.log('Block mined: ' + this.hash);
 	}
 }
 
 class BlockChain {
 	constructor() {
 		this.chain = [this.createGenesisBlock()];
+		this.difficulty = 5;
 	}
 
 	createGenesisBlock() {
@@ -38,7 +52,7 @@ class BlockChain {
 
 	addBlock(newBlock) {
 		newBlock.previousHash = this.getLatestBlock().hash;
-		newBlock.hash = newBlock.calculateHash();
+		newBlock.mineBlock(this.difficulty);
 		this.chain.push(newBlock);
 	}
 
@@ -65,9 +79,8 @@ class BlockChain {
 }
 
 let ethCoin = new BlockChain();
+
+console.log('Mining block 1...');
 ethCoin.addBlock(new Block(1, '25/11/2021', { amount: 2 }));
+console.log('Mining block 2...');
 ethCoin.addBlock(new Block(2, '26/11/2021', { amount: 5 }));
-
-// console.log(JSON.stringify(ethCoin, null, 4));
-
-console.log('Is chain valid? ' + ethCoin.isChainValid());
